@@ -1,0 +1,8 @@
+build/
+.vscode/
+bin/
+*.exe
+*.sln
+*.vcxproj~
+*.pdf
+.git
