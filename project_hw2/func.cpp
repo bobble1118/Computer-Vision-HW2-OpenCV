@@ -4,32 +4,33 @@
 #include <algorithm>
 #include <string>
 
-// zero padding
-static uchar getPixelSafe(const cv::Mat& img, int r, int c) {
-    if (r < 0 || r >= img.rows || c < 0 || c >= img.cols) {
-        return 0; 
-    }
-    return img.at<uchar>(r, c);
-}
+void applyMeanFilter(const cv::Mat& input, cv::Mat& output, int kernel_size) {
+    if (kernel_size <= 0) return;
+    if (kernel_size % 2 == 0) kernel_size++; 
+    int radius = kernel_size / 2;
+    int kernel_area = kernel_size * kernel_size;
 
-// 1. Mean Filter
-void applyMeanFilter(const cv::Mat& input, cv::Mat& output, int kernel_size, int stride) {
-    int out_rows = (input.rows + stride - 1) / stride;
-    int out_cols = (input.cols + stride - 1) / stride;
-    output = cv::Mat::zeros(cv::Size(out_cols, out_rows), CV_8UC1);
+    output.create(input.size(), input.type());
     
-    int pad = kernel_size / 2;
-    int total_pixels = kernel_size * kernel_size;
+    int rows = input.rows;
+    int cols = input.cols;
+    int channels = input.channels();
 
-    for (int r = 0; r < input.rows; r += stride) {
-        for (int c = 0; c < input.cols; c += stride) {
-            int sum = 0;
-            for (int kr = -pad; kr <= pad; ++kr) {
-                for (int kc = -pad; kc <= pad; ++kc) {
-                    sum += getPixelSafe(input, r + kr, c + kc);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            for (int c = 0; c < channels; ++c) {
+                long sum = 0;
+                
+                for (int ky = -radius; ky <= radius; ++ky) {
+                    for (int kx = -radius; kx <= radius; ++kx) {
+                        int py = std::max(0, std::min(rows - 1, i + ky));
+                        int px = std::max(0, std::min(cols - 1, j + kx));
+                        
+                        sum += input.data[(py * cols + px) * channels + c];
+                    }
                 }
+                output.data[(i * cols + j) * channels + c] = static_cast<uchar>(sum / kernel_area);
             }
-            output.at<uchar>(r / stride, c / stride) = static_cast<uchar>(sum / total_pixels);
         }
     }
 }
@@ -59,26 +60,38 @@ static void mergeSortInternal(std::vector<int>& arr, int l, int r) {
 }
 
 // 2. Median Filter
-void applyMedianFilter(const cv::Mat& input, cv::Mat& output, int kernel_size, int stride) {
-    int out_rows = (input.rows + stride - 1) / stride;
-    int out_cols = (input.cols + stride - 1) / stride;
-    output = cv::Mat::zeros(cv::Size(out_cols, out_rows), CV_8UC1);
-
-    int pad = kernel_size / 2;
+void applyMedianFilter(const cv::Mat& input, cv::Mat& output, int kernel_size) {
+    if (kernel_size <= 0) return;
+    if (kernel_size % 2 == 0) kernel_size++; 
+    
+    int radius = kernel_size / 2;
     int total_pixels = kernel_size * kernel_size;
-    std::vector<int> window(total_pixels);
+    
+    output.create(input.size(), input.type());
+    
+    int rows = input.rows;
+    int cols = input.cols;
+    int channels = input.channels();
 
-    for (int r = 0; r < input.rows; r += stride) {
-        for (int c = 0; c < input.cols; c += stride) {
-            int idx = 0;
-            for (int kr = -pad; kr <= pad; ++kr) {
-                for (int kc = -pad; kc <= pad; ++kc) {
-                    window[idx++] = getPixelSafe(input, r + kr, c + kc);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            for (int c = 0; c < channels; ++c) {
+                std::vector<int> window;
+                window.reserve(total_pixels);
+
+                for (int ky = -radius; ky <= radius; ++ky) {
+                    for (int kx = -radius; kx <= radius; ++kx) {                        
+                        int py = std::max(0, std::min(rows - 1, i + ky));
+                        int px = std::max(0, std::min(cols - 1, j + kx));
+
+                        int pixel_val = input.data[(py * cols + px) * channels + c];
+                        window.push_back(pixel_val);
+                    }
                 }
+
+                mergeSortInternal(window, 0, total_pixels - 1);
+                output.data[(i * cols + j) * channels + c] = static_cast<uchar>(window[total_pixels / 2]);
             }
-            
-            mergeSortInternal(window, 0, total_pixels - 1);
-            output.at<uchar>(r / stride, c / stride) = static_cast<uchar>(window[total_pixels / 2]);
         }
     }
 }

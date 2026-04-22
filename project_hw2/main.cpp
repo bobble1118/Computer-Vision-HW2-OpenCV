@@ -20,13 +20,13 @@ int main() {
 
     // 1. Mean Filter
     cv::Mat output1;
-    applyMeanFilter(noise_img, output1, 5, 2);
+    applyMeanFilter(noise_img, output1, 5);
     cv::imwrite("project_hw2/result_img/output1.png", output1);
     std::cout << "1. Mean Filter Done. Saved as result_img/output1.png" << std::endl;
 
     // 2. Median Filter
     cv::Mat output2;
-    applyMedianFilter(noise_img, output2, 5, 1);
+    applyMedianFilter(noise_img, output2, 5);
     cv::imwrite("project_hw2/result_img/output2.png", output2);
     std::cout << "2. Median Filter Done. Saved as result_img/output2.png" << std::endl;
 
